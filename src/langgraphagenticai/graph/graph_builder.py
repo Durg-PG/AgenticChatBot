@@ -1,28 +1,33 @@
-from langgraph.graph import StateGraph, START, END
-from langgraph.graph.message import add_messages
-from typing import Annotated
-from typing_extensions import TypedDict
-
-
-class State(TypedDict):
-    messages: Annotated[list, add_messages]
+from langgraph.graph import StateGraph
+from src.langgraphagenticai.state.state import State
+from langgraph.graph import START,END
+from src.langgraphagenticai.nodes.basic_chatbot_node import BasicChatbotNode
 
 
 class GraphBuilder:
-    def __init__(self, model):
-        self.model = model
+    def __init__(self,model):
+        self.llm=model
+        self.graph_builder=StateGraph(State)
 
-    def setup_graph(self, usecase):
+    def basic_chatbot_build_graph(self):
+        """
+        Builds a basic chatbot graph using LangGraph.
+        This method initializes a chatbot node using the `BasicChatbotNode` class 
+        and integrates it into the graph. The chatbot node is set as both the 
+        entry and exit point of the graph.
+        """
+
+        self.basic_chatbot_node=BasicChatbotNode(self.llm)
+
+        self.graph_builder.add_node("chatbot",self.basic_chatbot_node.process)
+        self.graph_builder.add_edge(START,"chatbot")
+        self.graph_builder.add_edge("chatbot",END)
+
+    def setup_graph(self, usecase: str):
+        """
+        Sets up the graph for the selected use case.
+        """
         if usecase == "Basic Chatbot":
-            return self._build_basic_chatbot()
-        raise ValueError(f"Unsupported usecase: {usecase}")
+            self.basic_chatbot_build_graph()
 
-    def _build_basic_chatbot(self):
-        def chatbot(state: State):
-            return {"messages": [self.model.invoke(state["messages"])]}
-
-        graph = StateGraph(State)
-        graph.add_node("chatbot", chatbot)
-        graph.add_edge(START, "chatbot")
-        graph.add_edge("chatbot", END)
-        return graph.compile()
+        return self.graph_builder.compile()
